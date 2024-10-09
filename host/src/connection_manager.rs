@@ -141,6 +141,20 @@ impl<'d> ConnectionManager<'d> {
         None
     }
 
+    pub(crate) fn get_connected_handle_for_addr(&self, addr: &BdAddr) -> Option<Connection<'_>> {
+        let mut state = self.state.borrow_mut();
+        for (index, storage) in state.connections.iter().enumerate() {
+            match (storage.peer_addr, &storage.state) {
+                (Some(caddr), ConnectionState::Connected) if caddr == *addr => {
+                    state.inc_ref(index as u8);
+                    return Some(Connection::new(index as u8, self));
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
     pub(crate) fn with_connected_handle<F: FnOnce(&mut ConnectionStorage) -> Result<(), Error>>(
         &self,
         h: ConnHandle,
@@ -384,6 +398,7 @@ pub(crate) trait DynamicConnectionManager {
     fn get_att_mtu(&self, conn: ConnHandle) -> u16;
     fn exchange_att_mtu(&self, conn: ConnHandle, mtu: u16) -> u16;
     fn get_connected_handle(&self, h: ConnHandle) -> Option<Connection<'_>>;
+    fn get_connected_handle_for_addr(&self, addr: &BdAddr) -> Option<Connection<'_>>;
 }
 
 impl<'d> DynamicConnectionManager for ConnectionManager<'d> {
@@ -440,6 +455,10 @@ impl<'d> DynamicConnectionManager for ConnectionManager<'d> {
 
     fn get_connected_handle(&self, h: ConnHandle) -> Option<Connection<'_>> {
         ConnectionManager::get_connected_handle(self, h)
+    }
+
+    fn get_connected_handle_for_addr(&self, addr: &BdAddr) -> Option<Connection<'_>> {
+        ConnectionManager::get_connected_handle_for_addr(self, addr)
     }
 }
 

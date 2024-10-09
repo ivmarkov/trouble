@@ -3,7 +3,7 @@ use core::cell::RefCell;
 use core::future::Future;
 
 use bt_hci::controller::Controller;
-use bt_hci::param::ConnHandle;
+use bt_hci::param::{BdAddr, ConnHandle};
 use embassy_sync::blocking_mutex::raw::{NoopRawMutex, RawMutex};
 use embassy_sync::channel::{Channel, DynamicReceiver, DynamicSender};
 use embassy_sync::pubsub::{self, PubSubChannel, WaitResult};
@@ -75,16 +75,25 @@ impl<'reference, 'values, C: Controller, M: RawMutex, const MAX: usize, const L2
                                     AttReq::Write { handle, data } => Some(GattEvent::Write {
                                         connection,
                                         handle: self.server.table.find_characteristic_by_value_handle(handle)?,
+                                        offset: 0,
+                                        len: data.len() as u16,
+                                        mtu,
                                     }),
 
                                     AttReq::Read { handle } => Some(GattEvent::Read {
                                         connection,
                                         handle: self.server.table.find_characteristic_by_value_handle(handle)?,
+                                        offset: 0,
+                                        len: data.len() as _,
+                                        mtu,
                                     }),
 
                                     AttReq::ReadBlob { handle, offset } => Some(GattEvent::Read {
                                         connection,
                                         handle: self.server.table.find_characteristic_by_value_handle(handle)?,
+                                        offset,
+                                        len: data.len() as _,
+                                        mtu,
                                     }),
                                     _ => None,
                                 };
@@ -151,6 +160,13 @@ impl<'reference, 'values, C: Controller, M: RawMutex, const MAX: usize, const L2
     pub fn server(&self) -> &AttributeServer<'values, M, MAX> {
         &self.server
     }
+
+    /// Get a connection handle for a given address.
+    ///
+    /// If the address is not connected, `None` is returned.
+    pub fn get_connection(&self, addr: &BdAddr) -> Option<Connection<'reference>> {
+        self.connections.get_connected_handle_for_addr(addr)
+    }
 }
 
 /// An event returned while processing GATT requests.
@@ -162,6 +178,12 @@ pub enum GattEvent<'reference> {
         connection: Connection<'reference>,
         /// Characteristic handle that was read.
         handle: Characteristic,
+        /// Offset of the read.
+        offset: u16,
+        /// Length of the read.
+        len: u16,
+        /// Data MTU size.
+        mtu: u16,
     },
     /// A characteristic was written.
     Write {
@@ -169,6 +191,12 @@ pub enum GattEvent<'reference> {
         connection: Connection<'reference>,
         /// Characteristic handle that was written.
         handle: Characteristic,
+        /// Offset of the write.
+        offset: u16,
+        /// Length of the write.
+        len: u16,
+        /// Data MTU size.
+        mtu: u16,
     },
 }
 

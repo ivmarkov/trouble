@@ -224,7 +224,7 @@ use bt_hci::controller::{ControllerCmdAsync, ControllerCmdSync};
 /// The controller must implement the required commands and events to be able to be used with Trouble.
 pub trait Controller:
     bt_hci::controller::Controller
-    + embedded_io::ErrorType
+    + bt_hci::error::ErrorType
     + ControllerCmdSync<LeReadBufferSize>
     + ControllerCmdSync<Disconnect>
     + ControllerCmdSync<SetEventMask>
@@ -252,7 +252,7 @@ pub trait Controller:
 
 impl<
         C: bt_hci::controller::Controller
-            + embedded_io::ErrorType
+            + bt_hci::error::ErrorType
             + ControllerCmdSync<LeReadBufferSize>
             + ControllerCmdSync<Disconnect>
             + ControllerCmdSync<SetEventMask>
@@ -304,7 +304,7 @@ impl<C: Controller, const CONNS: usize, const CHANNELS: usize, const L2CAP_MTU: 
     HostResources<C, CONNS, CHANNELS, L2CAP_MTU, ADV_SETS>
 {
     /// Create a new instance of host resources with the provided QoS requirements for packets.
-    pub fn new(qos: Qos) -> Self {
+    pub const fn new(qos: Qos) -> Self {
         Self {
             qos,
             rx_pool: MaybeUninit::uninit(),
