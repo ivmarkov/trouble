@@ -3,6 +3,7 @@ use core::future::Future;
 
 use bt_hci::cmd::{self, AsyncCmd, SyncCmd};
 use bt_hci::controller::{ControllerCmdAsync, ControllerCmdSync};
+use bt_hci::error::ErrorType;
 
 pub struct MockController {}
 
@@ -12,7 +13,7 @@ impl MockController {
     }
 }
 
-impl embedded_io::ErrorType for MockController {
+impl ErrorType for MockController {
     type Error = Infallible;
 }
 
