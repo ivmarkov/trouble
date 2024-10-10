@@ -71,7 +71,6 @@ async fn gatt_client_server() {
                             handle,
                             offset: 0,
                             len: 1,
-                            mtu: 1,
                         }) => {
                             assert_eq!(handle, value_handle);
                             let _ = server.server().table().get(handle, |value| {

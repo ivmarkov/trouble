@@ -77,7 +77,6 @@ impl<'reference, 'values, C: Controller, M: RawMutex, const MAX: usize, const L2
                                         handle: self.server.table.find_characteristic_by_value_handle(handle)?,
                                         offset: 0,
                                         len: data.len() as u16,
-                                        mtu,
                                     }),
 
                                     AttReq::Read { handle } => Some(GattEvent::Read {
@@ -85,7 +84,6 @@ impl<'reference, 'values, C: Controller, M: RawMutex, const MAX: usize, const L2
                                         handle: self.server.table.find_characteristic_by_value_handle(handle)?,
                                         offset: 0,
                                         len: data.len() as _,
-                                        mtu,
                                     }),
 
                                     AttReq::ReadBlob { handle, offset } => Some(GattEvent::Read {
@@ -93,7 +91,6 @@ impl<'reference, 'values, C: Controller, M: RawMutex, const MAX: usize, const L2
                                         handle: self.server.table.find_characteristic_by_value_handle(handle)?,
                                         offset,
                                         len: data.len() as _,
-                                        mtu,
                                     }),
                                     _ => None,
                                 };
@@ -182,8 +179,6 @@ pub enum GattEvent<'reference> {
         offset: u16,
         /// Length of the read.
         len: u16,
-        /// Data MTU size.
-        mtu: u16,
     },
     /// A characteristic was written.
     Write {
@@ -195,8 +190,6 @@ pub enum GattEvent<'reference> {
         offset: u16,
         /// Length of the write.
         len: u16,
-        /// Data MTU size.
-        mtu: u16,
     },
 }
 

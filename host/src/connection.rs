@@ -73,6 +73,11 @@ impl<'d> Connection<'d> {
         self.manager.set_att_mtu(self.index, mtu);
     }
 
+    /// Get the ATT MTU for this connection.
+    pub fn att_mtu(&self) -> u16 {
+        self.manager.get_att_mtu(self.manager.handle(self.index))
+    }
+
     /// Check if still connected
     pub fn is_connected(&self) -> bool {
         self.manager.is_connected(self.index)

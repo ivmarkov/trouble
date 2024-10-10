@@ -71,6 +71,7 @@ async fn gatt_client_server() {
                         Ok(GattEvent::Write {
                             connection: _,
                             handle,
+                            ..
                         }) => {
                             assert_eq!(handle, server.service.value);
                             let _ = server.get(handle, |value| {
