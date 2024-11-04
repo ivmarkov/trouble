@@ -8,9 +8,6 @@ keywords = ["no-std"]
 categories = ["embedded", "hardware-support", "no-std"]
 resolver = "2"
 
-[patch.crates-io]
-bt-hci = { git = "https://github.com/ivmarkov/bt-hci", branch = "ref-impls" }
-
 [dependencies]
 bt-hci = { version = "0.1.1", features = ["embassy-time"] }
 embedded-io-async = { version = "0.6" }

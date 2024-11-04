@@ -224,7 +224,7 @@ use bt_hci::controller::{ControllerCmdAsync, ControllerCmdSync};
 /// The controller must implement the required commands and events to be able to be used with Trouble.
 pub trait Controller:
     bt_hci::controller::Controller
-    + bt_hci::error::ErrorType
+    + embedded_io::ErrorType
     + ControllerCmdSync<LeReadBufferSize>
     + ControllerCmdSync<Disconnect>
     + ControllerCmdSync<SetEventMask>
@@ -252,7 +252,7 @@ pub trait Controller:
 
 impl<
         C: bt_hci::controller::Controller
-            + bt_hci::error::ErrorType
+            + embedded_io::ErrorType
             + ControllerCmdSync<LeReadBufferSize>
             + ControllerCmdSync<Disconnect>
             + ControllerCmdSync<SetEventMask>
