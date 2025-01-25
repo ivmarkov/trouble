@@ -1,3 +1,5 @@
+//! ATT PDU encoding and decoding
+
 use core::fmt::Display;
 use core::mem;
 
@@ -157,117 +159,164 @@ impl codec::Type for AttErrorCode {
     }
 }
 
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-#[derive(Debug)]
-pub enum AttReq<'d> {
-    ReadByGroupType {
-        start: u16,
-        end: u16,
-        group_type: Uuid,
-    },
-    ReadByType {
-        start: u16,
-        end: u16,
-        attribute_type: Uuid,
-    },
-    Read {
-        handle: u16,
-    },
-    Write {
-        handle: u16,
-        data: &'d [u8],
-    },
-    WriteCmd {
-        handle: u16,
-        data: &'d [u8],
-    },
-    ExchangeMtu {
-        mtu: u16,
-    },
-    FindByTypeValue {
-        start_handle: u16,
-        end_handle: u16,
-        att_type: u16,
-        att_value: &'d [u8],
-    },
-    FindInformation {
-        start_handle: u16,
-        end_handle: u16,
-    },
-    PrepareWrite {
-        handle: u16,
-        offset: u16,
-        value: &'d [u8],
-    },
-    ExecuteWrite {
-        flags: u8,
-    },
-    ReadMultiple {
-        handles: &'d [u8],
-    },
-    ReadBlob {
-        handle: u16,
-        offset: u16,
-    },
-    ConfirmIndication,
-}
-
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-#[derive(Debug)]
-pub enum AttRsp<'d> {
-    ExchangeMtu {
-        mtu: u16,
-    },
-    FindByTypeValue {
-        it: FindByTypeValueIter<'d>,
-    },
-    Error {
-        request: u8,
-        handle: u16,
-        code: AttErrorCode,
-    },
-    ReadByType {
-        it: ReadByTypeIter<'d>,
-    },
-    Read {
-        data: &'d [u8],
-    },
-    Write,
-    Notify {
-        handle: u16,
-        data: &'d [u8],
-    },
-    Indicate {
-        handle: u16,
-        data: &'d [u8],
-    },
-}
-
+/// Attribute Protocol (ATT) PDU
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug)]
 pub enum Att<'d> {
-    Req(AttReq<'d>),
-    Rsp(AttRsp<'d>),
+    /// Read By Group Type Request
+    ReadByGroupTypeReq {
+        /// Start attribute handle
+        start: u16,
+        /// End attribute handle
+        end: u16,
+        /// Group type
+        group_type: Uuid,
+    },
+    /// Read By Type Request
+    ReadByTypeReq {
+        /// Start attribute handle
+        start: u16,
+        /// End attribute handle
+        end: u16,
+        /// Attribute type
+        attribute_type: Uuid,
+    },
+    /// Read Request
+    ReadReq {
+        /// Attribute handle
+        handle: u16,
+    },
+    /// Write Request
+    WriteReq {
+        /// Attribute handle
+        handle: u16,
+        /// Attribute value
+        data: &'d [u8],
+    },
+    /// Write Command
+    WriteCmd {
+        /// Attribute handle
+        handle: u16,
+        /// Attribute value
+        data: &'d [u8],
+    },
+    /// Exchange MTU Request
+    ExchangeMtuReq {
+        /// Client MTU
+        mtu: u16,
+    },
+    /// Find By Type Value Request
+    FindByTypeValueReq {
+        /// Start attribute handle
+        start_handle: u16,
+        /// End attribute handle
+        end_handle: u16,
+        /// Attribute type
+        att_type: u16,
+        /// Attribute value
+        att_value: &'d [u8],
+    },
+    /// Find Information Request
+    FindInformationReq {
+        /// Start attribute handle
+        start_handle: u16,
+        /// End attribute handle
+        end_handle: u16,
+    },
+    /// Prepare Write Request
+    PrepareWriteReq {
+        /// Attribute handle
+        handle: u16,
+        /// Attribute offset
+        offset: u16,
+        /// Attribute value
+        value: &'d [u8],
+    },
+    /// Execute Write Request
+    ExecuteWriteReq {
+        /// Flags
+        flags: u8,
+    },
+    /// Read Multiple Request
+    ReadMultipleReq {
+        /// Attribute handles
+        handles: &'d [u8],
+    },
+    /// Read Blob Request
+    ReadBlobReq {
+        /// Attribute handle
+        handle: u16,
+        /// Attribute offset
+        offset: u16,
+    },
+    /// Exchange MTU Response
+    ExchangeMtuRsp {
+        /// Server MTU
+        mtu: u16,
+    },
+    /// Find By Type Value Response
+    FindByTypeValueRsp {
+        /// Iterator over the found handles
+        it: FindByTypeValueIter<'d>,
+    },
+    /// Error Response
+    Error {
+        /// Request opcode
+        request: u8,
+        /// Attribute handle
+        handle: u16,
+        /// Error code
+        code: AttErrorCode,
+    },
+    /// Read By Type Response
+    ReadByTypeRsp {
+        /// Iterator over the found attributes
+        it: ReadByTypeIter<'d>,
+    },
+    /// Read Response
+    ReadRsp {
+        /// Attribute value
+        data: &'d [u8],
+    },
+    /// Write Response
+    WriteRsp,
+    /// Notification
+    Notify {
+        /// Attribute handle
+        handle: u16,
+        /// Attribute value
+        data: &'d [u8],
+    },
+    /// Indication
+    Indicate {
+        /// Attribute handle
+        handle: u16,
+        /// Attribute value
+        data: &'d [u8],
+    },
+    /// Indication confirmation
+    ConfirmIndication,
 }
 
-impl codec::Type for AttRsp<'_> {
+impl codec::Type for Att<'_> {
     fn size(&self) -> usize {
-        AttRsp::size(self)
+        Self::size(self)
     }
 }
 
-impl codec::Encode for AttRsp<'_> {
+impl codec::Encode for Att<'_> {
     fn encode(&self, dest: &mut [u8]) -> Result<(), codec::Error> {
-        AttRsp::encode(self, dest)
+        Self::encode(self, dest)
     }
 }
 
-impl<'d> codec::Decode<'d> for AttRsp<'d> {
-    fn decode(src: &'d [u8]) -> Result<AttRsp<'d>, codec::Error> {
-        AttRsp::decode(src)
+impl<'d> codec::Decode<'d> for Att<'d> {
+    fn decode(src: &'d [u8]) -> Result<Self, codec::Error> {
+        Self::decode(src)
     }
 }
 
+/// An `Iterator`-like type over the found handles for a `FindByTypeValueRsp` PDU
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Clone, Debug)]
 pub struct FindByTypeValueIter<'d> {
@@ -275,6 +324,7 @@ pub struct FindByTypeValueIter<'d> {
 }
 
 impl FindByTypeValueIter<'_> {
+    /// Get the next pair of start/end attribute handles
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<Result<(u16, u16), crate::Error>> {
         if self.cursor.available() >= 4 {
@@ -290,6 +340,7 @@ impl FindByTypeValueIter<'_> {
     }
 }
 
+/// An `Iterator`-like type over the found attributes for a `ReadByTypeRsp` PDU
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Clone, Debug)]
 pub struct ReadByTypeIter<'d> {
@@ -298,6 +349,7 @@ pub struct ReadByTypeIter<'d> {
 }
 
 impl<'d> ReadByTypeIter<'d> {
+    /// Get the next attribute handle and attribute value pair
     #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<Result<(u16, &'d [u8]), crate::Error>> {
         if self.cursor.available() >= self.item_len {
@@ -313,28 +365,52 @@ impl<'d> ReadByTypeIter<'d> {
     }
 }
 
-impl<'d> AttRsp<'d> {
+impl<'d> Att<'d> {
+    /// Return `true` if the PDU is a client-to-server PDU
+    /// (i.e. generated by a client and expected to be processed by a server)
+    ///
+    /// Return `false` if the PDU is a server-to-client PDU
+    pub const fn is_client_to_server(&self) -> bool {
+        self.opcode() % 2 == 0
+    }
+
+    /// Return the size of the PDU in bytes, when encoded in wire format
     pub fn size(&self) -> usize {
         1 + match self {
-            Self::ExchangeMtu { mtu: u16 } => 2,
-            Self::FindByTypeValue { it } => it.cursor.len(),
+            Self::ExchangeMtuRsp { mtu: u16 } => 2,
+            Self::FindByTypeValueRsp { it } => it.cursor.len(),
             Self::Error { .. } => 4,
-            Self::Read { data } => data.len(),
-            Self::ReadByType { it } => it.cursor.len(),
-            Self::Write => 0,
+            Self::ReadRsp { data } => data.len(),
+            Self::ReadByTypeRsp { it } => it.cursor.len(),
+            Self::WriteRsp => 0,
             Self::Notify { data, .. } => 2 + data.len(),
             Self::Indicate { data, .. } => 2 + data.len(),
+            Self::ExchangeMtuReq { .. } => 2,
+            Self::FindByTypeValueReq {
+                start_handle,
+                end_handle,
+                att_type,
+                att_value,
+            } => 6 + att_value.len(),
+            Self::ReadByTypeReq {
+                start,
+                end,
+                attribute_type,
+            } => 4 + attribute_type.as_raw().len(),
+            Self::ReadReq { .. } => 2,
+            Self::WriteReq { handle, data } => 2 + data.len(),
+            _ => unimplemented!(),
         }
     }
 
-    pub fn encode(&self, dest: &mut [u8]) -> Result<(), codec::Error> {
+    fn encode(&self, dest: &mut [u8]) -> Result<(), codec::Error> {
         let mut w = WriteCursor::new(dest);
         match self {
-            Self::ExchangeMtu { mtu } => {
+            Self::ExchangeMtuRsp { mtu } => {
                 w.write(ATT_EXCHANGE_MTU_RSP)?;
                 w.write(*mtu)?;
             }
-            Self::FindByTypeValue { it } => {
+            Self::FindByTypeValueRsp { it } => {
                 w.write(ATT_FIND_BY_TYPE_VALUE_RSP)?;
                 let mut it = it.clone();
                 while let Some(Ok((start, end))) = it.next() {
@@ -348,7 +424,7 @@ impl<'d> AttRsp<'d> {
                 w.write(*handle)?;
                 w.write(*code)?;
             }
-            Self::ReadByType { it } => {
+            Self::ReadByTypeRsp { it } => {
                 w.write(ATT_READ_BY_TYPE_RSP)?;
                 w.write(it.item_len as u8)?;
                 let mut it = it.clone();
@@ -357,12 +433,47 @@ impl<'d> AttRsp<'d> {
                     w.append(item)?;
                 }
             }
-            Self::Read { data } => {
+            Self::ReadRsp { data } => {
                 w.write(ATT_READ_RSP)?;
                 w.append(data)?;
             }
-            Self::Write => {
+            Self::WriteRsp => {
                 w.write(ATT_WRITE_RSP)?;
+            }
+            Self::ExchangeMtuReq { mtu } => {
+                w.write(ATT_EXCHANGE_MTU_REQ)?;
+                w.write(*mtu)?;
+            }
+            Self::FindByTypeValueReq {
+                start_handle,
+                end_handle,
+                att_type,
+                att_value,
+            } => {
+                w.write(ATT_FIND_BY_TYPE_VALUE_REQ)?;
+                w.write(*start_handle)?;
+                w.write(*end_handle)?;
+                w.write(*att_type)?;
+                w.append(att_value)?;
+            }
+            Self::ReadByTypeReq {
+                start,
+                end,
+                attribute_type,
+            } => {
+                w.write(ATT_READ_BY_TYPE_REQ)?;
+                w.write(*start)?;
+                w.write(*end)?;
+                w.write_ref(attribute_type)?;
+            }
+            Self::ReadReq { handle } => {
+                w.write(ATT_READ_REQ)?;
+                w.write(*handle)?;
+            }
+            Self::WriteReq { handle, data } => {
+                w.write(ATT_WRITE_REQ)?;
+                w.write(*handle)?;
+                w.append(data)?;
             }
             Self::Notify { handle, data } => {
                 w.write(ATT_HANDLE_VALUE_NTF)?;
@@ -374,24 +485,155 @@ impl<'d> AttRsp<'d> {
                 w.write(*handle)?;
                 w.append(data)?;
             }
+            Self::ConfirmIndication => {
+                w.write(ATT_HANDLE_VALUE_CMF)?;
+            }
+            _ => unimplemented!(),
         }
         Ok(())
     }
 
-    pub fn decode(data: &'d [u8]) -> Result<AttRsp<'d>, codec::Error> {
+    pub(crate) fn decode(data: &'d [u8]) -> Result<Self, codec::Error> {
         let mut r = ReadCursor::new(data);
         let opcode: u8 = r.read()?;
-        AttRsp::decode_with_opcode(opcode, r)
+        Self::decode_with_opcode(opcode, r)
     }
 
-    pub fn decode_with_opcode(opcode: u8, mut r: ReadCursor<'d>) -> Result<AttRsp<'d>, codec::Error> {
+    fn decode_with_opcode(opcode: u8, mut r: ReadCursor<'d>) -> Result<Self, codec::Error> {
         match opcode {
-            ATT_FIND_BY_TYPE_VALUE_RSP => Ok(Self::FindByTypeValue {
+            ATT_READ_BY_GROUP_TYPE_REQ => {
+                let payload = r.remaining();
+
+                let start_handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
+                let end_handle = (payload[2] as u16) + ((payload[3] as u16) << 8);
+
+                let group_type = if payload.len() == 6 {
+                    Uuid::Uuid16([payload[4], payload[5]])
+                } else if payload.len() == 20 {
+                    let uuid = payload[4..21].try_into().map_err(|_| codec::Error::InvalidValue)?;
+                    Uuid::Uuid128(uuid)
+                } else {
+                    return Err(codec::Error::InvalidValue);
+                };
+
+                Ok(Self::ReadByGroupTypeReq {
+                    start: start_handle,
+                    end: end_handle,
+                    group_type,
+                })
+            }
+            ATT_READ_BY_TYPE_REQ => {
+                let payload = r.remaining();
+
+                let start_handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
+                let end_handle = (payload[2] as u16) + ((payload[3] as u16) << 8);
+
+                let attribute_type = if payload.len() == 6 {
+                    Uuid::Uuid16([payload[4], payload[5]])
+                } else if payload.len() == 20 {
+                    let uuid = payload[4..20].try_into().map_err(|_| codec::Error::InvalidValue)?;
+                    Uuid::Uuid128(uuid)
+                } else {
+                    return Err(codec::Error::InvalidValue);
+                };
+
+                Ok(Self::ReadByTypeReq {
+                    start: start_handle,
+                    end: end_handle,
+                    attribute_type,
+                })
+            }
+            ATT_READ_REQ => {
+                let payload = r.remaining();
+
+                let handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
+
+                Ok(Self::ReadReq { handle })
+            }
+            ATT_WRITE_REQ => {
+                let payload = r.remaining();
+
+                let handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
+                let data = &payload[2..];
+
+                Ok(Self::WriteReq { handle, data })
+            }
+            ATT_WRITE_CMD => {
+                let payload = r.remaining();
+
+                let handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
+                let data = &payload[2..];
+
+                Ok(Self::WriteCmd { handle, data })
+            }
+            ATT_EXCHANGE_MTU_REQ => {
+                let payload = r.remaining();
+
+                let mtu = (payload[0] as u16) + ((payload[1] as u16) << 8);
+                Ok(Self::ExchangeMtuReq { mtu })
+            }
+            ATT_FIND_BY_TYPE_VALUE_REQ => {
+                let payload = r.remaining();
+
+                let start_handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
+                let end_handle = (payload[2] as u16) + ((payload[3] as u16) << 8);
+                let att_type = (payload[4] as u16) + ((payload[5] as u16) << 8);
+                let att_value = &payload[6..];
+
+                Ok(Self::FindByTypeValueReq {
+                    start_handle,
+                    end_handle,
+                    att_type,
+                    att_value,
+                })
+            }
+            ATT_FIND_INFORMATION_REQ => {
+                let payload = r.remaining();
+
+                let start_handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
+                let end_handle = (payload[2] as u16) + ((payload[3] as u16) << 8);
+
+                Ok(Self::FindInformationReq {
+                    start_handle,
+                    end_handle,
+                })
+            }
+            ATT_PREPARE_WRITE_REQ => {
+                let payload = r.remaining();
+
+                let handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
+                let offset = (payload[2] as u16) + ((payload[3] as u16) << 8);
+                Ok(Self::PrepareWriteReq {
+                    handle,
+                    offset,
+                    value: &payload[4..],
+                })
+            }
+            ATT_EXECUTE_WRITE_REQ => {
+                let payload = r.remaining();
+
+                let flags = payload[0];
+                Ok(Self::ExecuteWriteReq { flags })
+            }
+            ATT_READ_MULTIPLE_REQ => {
+                let payload = r.remaining();
+
+                Ok(Self::ReadMultipleReq { handles: payload })
+            }
+            ATT_READ_BLOB_REQ => {
+                let payload = r.remaining();
+
+                let handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
+                let offset = (payload[2] as u16) + ((payload[3] as u16) << 8);
+                Ok(Self::ReadBlobReq { handle, offset })
+            }
+            ATT_HANDLE_VALUE_CMF => Ok(Self::ConfirmIndication),
+            ATT_FIND_BY_TYPE_VALUE_RSP => Ok(Self::FindByTypeValueRsp {
                 it: FindByTypeValueIter { cursor: r },
             }),
             ATT_EXCHANGE_MTU_RSP => {
                 let mtu: u16 = r.read()?;
-                Ok(Self::ExchangeMtu { mtu })
+                Ok(Self::ExchangeMtuRsp { mtu })
             }
             ATT_ERROR_RSP => {
                 let request = r.read()?;
@@ -399,17 +641,17 @@ impl<'d> AttRsp<'d> {
                 let code = r.read()?;
                 Ok(Self::Error { request, handle, code })
             }
-            ATT_READ_RSP => Ok(Self::Read { data: r.remaining() }),
+            ATT_READ_RSP => Ok(Self::ReadRsp { data: r.remaining() }),
             ATT_READ_BY_TYPE_RSP => {
                 let item_len: u8 = r.read()?;
-                Ok(Self::ReadByType {
+                Ok(Self::ReadByTypeRsp {
                     it: ReadByTypeIter {
                         item_len: item_len as usize,
                         cursor: r,
                     },
                 })
             }
-            ATT_WRITE_RSP => Ok(Self::Write),
+            ATT_WRITE_RSP => Ok(Self::WriteRsp),
             ATT_HANDLE_VALUE_NTF => {
                 let handle = r.read()?;
                 Ok(Self::Notify {
@@ -424,7 +666,36 @@ impl<'d> AttRsp<'d> {
                     data: r.remaining(),
                 })
             }
-            _ => Err(codec::Error::InvalidValue),
+            code => {
+                warn!("[att] unknown opcode {:x}", code);
+                Err(codec::Error::InvalidValue)
+            }
+        }
+    }
+
+    const fn opcode(&self) -> u8 {
+        match self {
+            Self::ReadByGroupTypeReq { .. } => ATT_READ_BY_GROUP_TYPE_REQ,
+            Self::ReadByTypeReq { .. } => ATT_READ_BY_TYPE_REQ,
+            Self::ReadReq { .. } => ATT_READ_REQ,
+            Self::WriteReq { .. } => ATT_WRITE_REQ,
+            Self::WriteCmd { .. } => ATT_WRITE_CMD,
+            Self::ExchangeMtuReq { .. } => ATT_EXCHANGE_MTU_REQ,
+            Self::FindByTypeValueReq { .. } => ATT_FIND_BY_TYPE_VALUE_REQ,
+            Self::FindInformationReq { .. } => ATT_FIND_INFORMATION_REQ,
+            Self::PrepareWriteReq { .. } => ATT_PREPARE_WRITE_REQ,
+            Self::ExecuteWriteReq { .. } => ATT_EXECUTE_WRITE_REQ,
+            Self::ReadMultipleReq { .. } => ATT_READ_MULTIPLE_REQ,
+            Self::ReadBlobReq { .. } => ATT_READ_BLOB_REQ,
+            Self::ExchangeMtuRsp { .. } => ATT_EXCHANGE_MTU_RSP,
+            Self::FindByTypeValueRsp { .. } => ATT_FIND_BY_TYPE_VALUE_RSP,
+            Self::Error { .. } => ATT_ERROR_RSP,
+            Self::ReadByTypeRsp { .. } => ATT_READ_BY_TYPE_RSP,
+            Self::ReadRsp { .. } => ATT_READ_RSP,
+            Self::WriteRsp => ATT_WRITE_RSP,
+            Self::Notify { .. } => ATT_HANDLE_VALUE_NTF,
+            Self::Indicate { .. } => ATT_HANDLE_VALUE_IND,
+            Self::ConfirmIndication => ATT_HANDLE_VALUE_CMF,
         }
     }
 }
@@ -432,221 +703,5 @@ impl<'d> AttRsp<'d> {
 impl From<codec::Error> for AttErrorCode {
     fn from(e: codec::Error) -> Self {
         AttErrorCode::INVALID_PDU
-    }
-}
-
-impl codec::Type for AttReq<'_> {
-    fn size(&self) -> usize {
-        AttReq::size(self)
-    }
-}
-
-impl codec::Encode for AttReq<'_> {
-    fn encode(&self, dest: &mut [u8]) -> Result<(), codec::Error> {
-        AttReq::encode(self, dest)
-    }
-}
-
-impl<'d> codec::Decode<'d> for AttReq<'d> {
-    fn decode(data: &'d [u8]) -> Result<AttReq<'d>, codec::Error> {
-        AttReq::decode(data)
-    }
-}
-
-impl<'d> Att<'d> {
-    pub fn decode(data: &'d [u8]) -> Result<Att<'d>, codec::Error> {
-        let mut r = ReadCursor::new(data);
-        let opcode: u8 = r.read()?;
-        if opcode % 2 == 0 {
-            let req = AttReq::decode_with_opcode(opcode, r)?;
-            Ok(Att::Req(req))
-        } else {
-            let rsp = AttRsp::decode_with_opcode(opcode, r)?;
-            Ok(Att::Rsp(rsp))
-        }
-    }
-}
-
-impl<'d> AttReq<'d> {
-    pub fn size(&self) -> usize {
-        1 + match self {
-            Self::ExchangeMtu { .. } => 2,
-            Self::FindByTypeValue {
-                start_handle,
-                end_handle,
-                att_type,
-                att_value,
-            } => 6 + att_value.len(),
-            Self::ReadByType {
-                start,
-                end,
-                attribute_type,
-            } => 4 + attribute_type.as_raw().len(),
-            Self::Read { .. } => 2,
-            Self::Write { handle, data } => 2 + data.len(),
-            _ => unimplemented!(),
-        }
-    }
-    pub fn encode(&self, dest: &mut [u8]) -> Result<(), codec::Error> {
-        let mut w = WriteCursor::new(dest);
-        match self {
-            Self::ExchangeMtu { mtu } => {
-                w.write(ATT_EXCHANGE_MTU_REQ)?;
-                w.write(*mtu)?;
-            }
-            Self::FindByTypeValue {
-                start_handle,
-                end_handle,
-                att_type,
-                att_value,
-            } => {
-                w.write(ATT_FIND_BY_TYPE_VALUE_REQ)?;
-                w.write(*start_handle)?;
-                w.write(*end_handle)?;
-                w.write(*att_type)?;
-                w.append(att_value)?;
-            }
-            Self::ReadByType {
-                start,
-                end,
-                attribute_type,
-            } => {
-                w.write(ATT_READ_BY_TYPE_REQ)?;
-                w.write(*start)?;
-                w.write(*end)?;
-                w.write_ref(attribute_type)?;
-            }
-            Self::Read { handle } => {
-                w.write(ATT_READ_REQ)?;
-                w.write(*handle)?;
-            }
-            Self::Write { handle, data } => {
-                w.write(ATT_WRITE_REQ)?;
-                w.write(*handle)?;
-                w.append(data)?;
-            }
-            Self::ConfirmIndication => {
-                w.write(ATT_HANDLE_VALUE_CMF)?;
-            }
-            _ => unimplemented!(),
-        }
-        Ok(())
-    }
-
-    pub fn decode(data: &'d [u8]) -> Result<AttReq<'d>, codec::Error> {
-        let mut r = ReadCursor::new(data);
-        let opcode: u8 = r.read()?;
-        AttReq::decode_with_opcode(opcode, r)
-    }
-
-    pub fn decode_with_opcode(opcode: u8, r: ReadCursor<'d>) -> Result<AttReq<'d>, codec::Error> {
-        let payload = r.remaining();
-        match opcode {
-            ATT_READ_BY_GROUP_TYPE_REQ => {
-                let start_handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
-                let end_handle = (payload[2] as u16) + ((payload[3] as u16) << 8);
-
-                let group_type = if payload.len() == 6 {
-                    Uuid::Uuid16([payload[4], payload[5]])
-                } else if payload.len() == 20 {
-                    let uuid = payload[4..21].try_into().map_err(|_| codec::Error::InvalidValue)?;
-                    Uuid::Uuid128(uuid)
-                } else {
-                    return Err(codec::Error::InvalidValue);
-                };
-
-                Ok(Self::ReadByGroupType {
-                    start: start_handle,
-                    end: end_handle,
-                    group_type,
-                })
-            }
-            ATT_READ_BY_TYPE_REQ => {
-                let start_handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
-                let end_handle = (payload[2] as u16) + ((payload[3] as u16) << 8);
-
-                let attribute_type = if payload.len() == 6 {
-                    Uuid::Uuid16([payload[4], payload[5]])
-                } else if payload.len() == 20 {
-                    let uuid = payload[4..20].try_into().map_err(|_| codec::Error::InvalidValue)?;
-                    Uuid::Uuid128(uuid)
-                } else {
-                    return Err(codec::Error::InvalidValue);
-                };
-
-                Ok(Self::ReadByType {
-                    start: start_handle,
-                    end: end_handle,
-                    attribute_type,
-                })
-            }
-            ATT_READ_REQ => {
-                let handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
-
-                Ok(Self::Read { handle })
-            }
-            ATT_WRITE_REQ => {
-                let handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
-                let data = &payload[2..];
-
-                Ok(Self::Write { handle, data })
-            }
-            ATT_WRITE_CMD => {
-                let handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
-                let data = &payload[2..];
-
-                Ok(Self::WriteCmd { handle, data })
-            }
-            ATT_EXCHANGE_MTU_REQ => {
-                let mtu = (payload[0] as u16) + ((payload[1] as u16) << 8);
-                Ok(Self::ExchangeMtu { mtu })
-            }
-            ATT_FIND_BY_TYPE_VALUE_REQ => {
-                let start_handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
-                let end_handle = (payload[2] as u16) + ((payload[3] as u16) << 8);
-                let att_type = (payload[4] as u16) + ((payload[5] as u16) << 8);
-                let att_value = &payload[6..];
-
-                Ok(Self::FindByTypeValue {
-                    start_handle,
-                    end_handle,
-                    att_type,
-                    att_value,
-                })
-            }
-            ATT_FIND_INFORMATION_REQ => {
-                let start_handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
-                let end_handle = (payload[2] as u16) + ((payload[3] as u16) << 8);
-
-                Ok(Self::FindInformation {
-                    start_handle,
-                    end_handle,
-                })
-            }
-            ATT_PREPARE_WRITE_REQ => {
-                let handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
-                let offset = (payload[2] as u16) + ((payload[3] as u16) << 8);
-                Ok(Self::PrepareWrite {
-                    handle,
-                    offset,
-                    value: &payload[4..],
-                })
-            }
-            ATT_EXECUTE_WRITE_REQ => {
-                let flags = payload[0];
-                Ok(Self::ExecuteWrite { flags })
-            }
-            ATT_READ_MULTIPLE_REQ => Ok(Self::ReadMultiple { handles: payload }),
-            ATT_READ_BLOB_REQ => {
-                let handle = (payload[0] as u16) + ((payload[1] as u16) << 8);
-                let offset = (payload[2] as u16) + ((payload[3] as u16) << 8);
-                Ok(Self::ReadBlob { handle, offset })
-            }
-            ATT_HANDLE_VALUE_CMF => Ok(Self::ConfirmIndication),
-            code => {
-                warn!("[att] unknown opcode {:x}", code);
-                Err(codec::Error::InvalidValue)
-            }
-        }
     }
 }

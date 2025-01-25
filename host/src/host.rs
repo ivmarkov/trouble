@@ -34,6 +34,7 @@ use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel::Channel};
 use futures::pin_mut;
 
 use crate::channel_manager::{ChannelManager, ChannelStorage, PacketChannel};
+use crate::codec::Decode;
 use crate::command::CommandState;
 #[cfg(feature = "gatt")]
 use crate::connection::ConnectionEventData;
@@ -379,11 +380,11 @@ where
             L2CAP_CID_ATT => {
                 // Handle ATT MTU exchange here since it doesn't strictly require
                 // gatt to be enabled.
-                let a = att::Att::decode(&packet.as_ref()[..header.length as usize]);
-                if let Ok(att::Att::Req(att::AttReq::ExchangeMtu { mtu })) = a {
+                let a = Decode::decode(&packet.as_ref()[..header.length as usize]);
+                if let Ok(att::Att::ExchangeMtuReq { mtu }) = a {
                     let mtu = self.connections.exchange_att_mtu(acl.handle(), mtu);
 
-                    let rsp = att::AttRsp::ExchangeMtu { mtu };
+                    let rsp = att::Att::ExchangeMtuRsp { mtu };
                     let l2cap = L2capHeader {
                         channel: L2CAP_CID_ATT,
                         length: 3,
@@ -396,20 +397,19 @@ where
                     info!("[host] agreed att MTU of {}", mtu);
                     let len = w.len();
                     self.connections.try_outbound(acl.handle(), Pdu::new(packet, len))?;
-                } else if let Ok(att::Att::Rsp(att::AttRsp::ExchangeMtu { mtu })) = a {
+                } else if let Ok(att::Att::ExchangeMtuRsp { mtu }) = a {
                     info!("[host] remote agreed att MTU of {}", mtu);
                     self.connections.exchange_att_mtu(acl.handle(), mtu);
                 } else {
                     #[cfg(feature = "gatt")]
                     match a {
-                        Ok(att::Att::Req(_)) => {
-                            let event = ConnectionEventData::Gatt {
-                                data: Pdu::new(packet, header.length as usize),
-                            };
-                            self.connections.post_handle_event(acl.handle(), event)?;
-                        }
-                        Ok(att::Att::Rsp(_)) => {
-                            if let Err(e) = self
+                        Ok(att) => {
+                            if att.is_client_to_server() {
+                                let event = ConnectionEventData::Gatt {
+                                    data: Pdu::new(packet, header.length as usize),
+                                };
+                                self.connections.post_handle_event(acl.handle(), event)?;
+                            } else if let Err(e) = self
                                 .att_client
                                 .try_send((acl.handle(), Pdu::new(packet, header.length as usize)))
                             {

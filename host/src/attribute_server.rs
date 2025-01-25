@@ -4,7 +4,7 @@ use bt_hci::param::ConnHandle;
 use embassy_sync::blocking_mutex::raw::RawMutex;
 use embassy_sync::blocking_mutex::Mutex;
 
-use crate::att::{self, AttErrorCode, AttReq};
+use crate::att::{self, Att, AttErrorCode};
 use crate::attribute::{AttributeData, AttributeTable};
 use crate::cursor::WriteCursor;
 use crate::prelude::Connection;
@@ -26,7 +26,7 @@ pub(crate) mod sealed {
     use super::*;
 
     pub trait DynamicAttributeServer {
-        fn process(&self, connection: &Connection, packet: &AttReq, rx: &mut [u8]) -> Result<Option<usize>, Error>;
+        fn process(&self, connection: &Connection, packet: &Att, rx: &mut [u8]) -> Result<Option<usize>, Error>;
         fn should_notify(&self, connection: &Connection, cccd_handle: u16) -> bool;
         fn set(&self, characteristic: u16, input: &[u8]) -> Result<(), Error>;
     }
@@ -37,7 +37,7 @@ pub trait DynamicAttributeServer: sealed::DynamicAttributeServer {}
 
 impl<M: RawMutex, const MAX: usize> DynamicAttributeServer for AttributeServer<'_, M, MAX> {}
 impl<M: RawMutex, const MAX: usize> sealed::DynamicAttributeServer for AttributeServer<'_, M, MAX> {
-    fn process(&self, connection: &Connection, packet: &AttReq, rx: &mut [u8]) -> Result<Option<usize>, Error> {
+    fn process(&self, connection: &Connection, packet: &Att, rx: &mut [u8]) -> Result<Option<usize>, Error> {
         let res = AttributeServer::process(self, connection, packet, rx)?;
         Ok(res)
     }
@@ -438,56 +438,51 @@ impl<'values, M: RawMutex, const MAX: usize> AttributeServer<'values, M, MAX> {
     }
 
     /// Process an event and produce a response if necessary
-    pub fn process(
-        &self,
-        connection: &Connection,
-        packet: &AttReq,
-        rx: &mut [u8],
-    ) -> Result<Option<usize>, codec::Error> {
+    pub fn process(&self, connection: &Connection, packet: &Att, rx: &mut [u8]) -> Result<Option<usize>, codec::Error> {
         let len = match packet {
-            AttReq::ReadByType {
+            Att::ReadByTypeReq {
                 start,
                 end,
                 attribute_type,
             } => self.handle_read_by_type_req(connection, rx, *start, *end, attribute_type)?,
 
-            AttReq::ReadByGroupType { start, end, group_type } => {
+            Att::ReadByGroupTypeReq { start, end, group_type } => {
                 self.handle_read_by_group_type_req(connection, rx, *start, *end, group_type)?
             }
-            AttReq::FindInformation {
+            Att::FindInformationReq {
                 start_handle,
                 end_handle,
             } => self.handle_find_information(rx, *start_handle, *end_handle)?,
 
-            AttReq::Read { handle } => self.handle_read_req(connection, rx, *handle)?,
+            Att::ReadReq { handle } => self.handle_read_req(connection, rx, *handle)?,
 
-            AttReq::WriteCmd { handle, data } => {
+            Att::WriteCmd { handle, data } => {
                 self.handle_write_cmd(connection, rx, *handle, data)?;
                 0
             }
 
-            AttReq::Write { handle, data } => self.handle_write_req(connection, rx, *handle, data)?,
+            Att::WriteReq { handle, data } => self.handle_write_req(connection, rx, *handle, data)?,
 
-            AttReq::ExchangeMtu { mtu } => 0, // Done outside,
+            Att::ExchangeMtuReq { mtu } => 0, // Done outside,
 
-            AttReq::FindByTypeValue {
+            Att::FindByTypeValueReq {
                 start_handle,
                 end_handle,
                 att_type,
                 att_value,
             } => self.handle_find_type_value(rx, *start_handle, *end_handle, *att_type, att_value)?,
 
-            AttReq::PrepareWrite { handle, offset, value } => {
+            Att::PrepareWriteReq { handle, offset, value } => {
                 self.handle_prepare_write(connection, rx, *handle, *offset, value)?
             }
 
-            AttReq::ExecuteWrite { flags } => self.handle_execute_write(rx, *flags)?,
+            Att::ExecuteWriteReq { flags } => self.handle_execute_write(rx, *flags)?,
 
-            AttReq::ReadBlob { handle, offset } => self.handle_read_blob(connection, rx, *handle, *offset)?,
+            Att::ReadBlobReq { handle, offset } => self.handle_read_blob(connection, rx, *handle, *offset)?,
 
-            AttReq::ReadMultiple { handles } => self.handle_read_multiple(connection, rx, handles)?,
+            Att::ReadMultipleReq { handles } => self.handle_read_multiple(connection, rx, handles)?,
 
-            AttReq::ConfirmIndication => 0,
+            _ => 0,
         };
         if len > 0 {
             Ok(Some(len))
